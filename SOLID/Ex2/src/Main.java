@@ -11,9 +11,13 @@ public class Main {
 
         List<OrderLine> order = List.of(
                 new OrderLine("M1", 2),
-                new OrderLine("C1", 1)
-        );
+                new OrderLine("C1", 1));
 
-        sys.checkout("student", order);
+        ITaxPolicy taxPolicy = new StudentTaxPolicy();
+        IDiscountPolicy discountPolicy = new StudentDiscountPolicy();
+        IInvoiceStore store = new MemoryInvoiceStore();
+        IInvoiceFormatter formatter = new StandardFormatter();
+
+        sys.checkout(taxPolicy, discountPolicy, store, formatter, order);
     }
 }
