@@ -1,37 +1,34 @@
 import java.util.*;
 
 public class HostelFeeCalculator {
-    private final FakeBookingRepo repo;
+    private final IBookingRepo repo;
+    private final IReceiptPrinter printer;
+    private final List<IPricingRule> monthlyRules;
+    private final IPricingRule depositRule;
 
-    public HostelFeeCalculator(FakeBookingRepo repo) { this.repo = repo; }
+    public HostelFeeCalculator(IBookingRepo repo, IReceiptPrinter printer, List<IPricingRule> monthlyRules,
+            IPricingRule depositRule) {
+        this.repo = repo;
+        this.printer = printer;
+        this.monthlyRules = monthlyRules;
+        this.depositRule = depositRule;
+    }
 
-    // OCP violation: switch + add-on branching + printing + persistence.
     public void process(BookingRequest req) {
         Money monthly = calculateMonthly(req);
-        Money deposit = new Money(5000.00);
+        Money deposit = depositRule.calculate(req);
 
-        ReceiptPrinter.print(req, monthly, deposit);
+        printer.print(req, monthly, deposit);
 
-        String bookingId = "H-" + (7000 + new Random(1).nextInt(1000)); // deterministic-ish
+        String bookingId = "H-" + (7000 + new Random(1).nextInt(1000));
         repo.save(bookingId, req, monthly, deposit);
     }
 
     private Money calculateMonthly(BookingRequest req) {
-        double base;
-        switch (req.roomType) {
-            case LegacyRoomTypes.SINGLE -> base = 14000.0;
-            case LegacyRoomTypes.DOUBLE -> base = 15000.0;
-            case LegacyRoomTypes.TRIPLE -> base = 12000.0;
-            default -> base = 16000.0;
+        double total = 0.0;
+        for (IPricingRule rule : monthlyRules) {
+            total += rule.calculate(req).amount;
         }
-
-        double add = 0.0;
-        for (AddOn a : req.addOns) {
-            if (a == AddOn.MESS) add += 1000.0;
-            else if (a == AddOn.LAUNDRY) add += 500.0;
-            else if (a == AddOn.GYM) add += 300.0;
-        }
-
-        return new Money(base + add);
+        return new Money(total);
     }
 }
